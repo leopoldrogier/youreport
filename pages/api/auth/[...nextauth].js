@@ -1,11 +1,12 @@
-import NextAuth from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { getDb } from "../../../lib/db";
+const NextAuth = require("next-auth").default;
+const CredentialsProvider = require("next-auth/providers/credentials").default;
+const bcrypt = require("bcryptjs");
+const { getDb } = require("../../../lib/db");
 
-export const authOptions = {
+const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  pages: { signIn: "/api/auth/signin" },
   providers: [
     CredentialsProvider({
       name: "Email & Mot de passe",
@@ -20,17 +21,23 @@ export const authOptions = {
 
         const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
         const adminPassword = String(process.env.ADMIN_PASSWORD || "").trim();
+
         if (adminEmail && adminPassword && email === adminEmail) {
           if (password !== adminPassword) return null;
           return { id: "admin", email: adminEmail, name: "Admin", role: "admin", clientId: null };
         }
 
-        const db = await getDb();
-        const client = await db.collection("clients").findOne({ loginEmail: email, active: true });
-        if (!client || !client.passwordHash) return null;
-        const ok = await bcrypt.compare(password, client.passwordHash);
-        if (!ok) return null;
-        return { id: client._id.toString(), email: client.loginEmail, name: client.name, role: "client", clientId: client._id.toString() };
+        try {
+          const db = await getDb();
+          const client = await db.collection("clients").findOne({ loginEmail: email, active: true });
+          if (!client || !client.passwordHash) return null;
+          const ok = await bcrypt.compare(password, client.passwordHash);
+          if (!ok) return null;
+          return { id: client._id.toString(), email: client.loginEmail, name: client.name, role: "client", clientId: client._id.toString() };
+        } catch (err) {
+          console.error("Auth error:", err);
+          return null;
+        }
       },
     }),
   ],
@@ -55,4 +62,6 @@ export const authOptions = {
   },
 };
 
-export default NextAuth(authOptions);
+const handler = NextAuth(authOptions);
+handler.authOptions = authOptions;
+module.exports = handler;
