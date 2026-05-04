@@ -1,12 +1,11 @@
-const NextAuth = require("next-auth").default;
-const CredentialsProvider = require("next-auth/providers/credentials").default;
-const bcrypt = require("bcryptjs");
-const { getDb } = require("../../../lib/db");
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { getDb } from "../../../lib/db";
 
-const authOptions = {
+export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
-  pages: { signIn: "/api/auth/signin" },
   providers: [
     CredentialsProvider({
       name: "Email & Mot de passe",
@@ -18,15 +17,12 @@ const authOptions = {
         const email = String(credentials?.email || "").trim().toLowerCase();
         const password = String(credentials?.password || "").trim();
         if (!email || !password) return null;
-
         const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
         const adminPassword = String(process.env.ADMIN_PASSWORD || "").trim();
-
         if (adminEmail && adminPassword && email === adminEmail) {
           if (password !== adminPassword) return null;
           return { id: "admin", email: adminEmail, name: "Admin", role: "admin", clientId: null };
         }
-
         try {
           const db = await getDb();
           const client = await db.collection("clients").findOne({ loginEmail: email, active: true });
@@ -62,6 +58,4 @@ const authOptions = {
   },
 };
 
-const handler = NextAuth(authOptions);
-handler.authOptions = authOptions;
-module.exports = handler;
+export default NextAuth(authOptions);
