@@ -1,0 +1,43 @@
+name: AutoReport Weekly
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "15 7 * * 1"
+  # timezone: "Europe/Paris"  # décommenter si supporté par votre runner
+
+concurrency:
+  group: auto-report-weekly
+  cancel-in-progress: false
+
+jobs:
+  run-weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      NODE_ENV: production
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB: ${{ secrets.MONGODB_DB }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_MODEL: ${{ secrets.CLAUDE_MODEL }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install deps
+        run: npm ci
+      - name: Generate reports
+        run: node scripts/generateReports.js
+      - name: Send emails
+        run: node scripts/sendEmails.js
